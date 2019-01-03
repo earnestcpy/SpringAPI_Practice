@@ -1,6 +1,7 @@
 package com.example.practice.controller;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.validation.Valid;
 
@@ -15,56 +16,90 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.practice.exception.AuthorNotFoundException;
 import com.example.practice.exception.ResourceNotFoundException;
 import com.example.practice.model.Note;
+import com.example.practice.repository.AuthorRepository;
 import com.example.practice.repository.NoteRepository;
 
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/notes_api")
 public class NoteController {
 	
 	@Autowired
-	NoteRepository noteRepository;
+	private AuthorRepository authorRepository;
+	
+	@Autowired
+	private NoteRepository noteRepository;
 	
 	@GetMapping("/notes")
 	public List<Note> getAllNotes() {
 	    return noteRepository.findAll();
 	}
 	
-	
-	@PostMapping("/notes")
-	public Note createNote(@Valid @RequestBody Note note) {
-	    return noteRepository.save(note);
+	@GetMapping("/author/{author_id}/notes")
+	public List<Note>getAllNotesByID(@PathVariable(name ="author_id") Long author_id){
+		if(authorRepository.existsById(author_id)) {
+			return noteRepository.findNoteByAuthorId(author_id);
+		}
+		else {
+			throw new AuthorNotFoundException(author_id);
+		}
+		
 	}
 	
-	@GetMapping("/notes/{id}")
-	public Note getNoteById(@PathVariable(value = "id") Long noteId) {
-	    return noteRepository.findById(noteId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Note", "id", noteId));
-	}
+	
+	@PostMapping("/author/{author_id}/notes")
+	public Note createNote(@PathVariable(value = "author_id") Long author_id, @Valid @RequestBody Note  note ) {
+		
+		return authorRepository.findById(author_id)
+					.map(author ->{
+						note.setAuthor(author);
+						return noteRepository.save(note);
+					}).orElseThrow(() -> new AuthorNotFoundException(author_id));
+	}	
 	
 	// Update a Note
-	@PutMapping("/notes/{id}")
-	public Note updateNote(@PathVariable(value = "id") Long noteId, @Valid @RequestBody Note noteDetails) {
+	@PutMapping("/author/{author_id}/notes/{note_id}")
+	public Optional<Note> updateNote(@PathVariable(value = "note_id") Long noteId
+			, @PathVariable(value = "author_id") Long author_id
+			, @Valid @RequestBody Note updated_note) {
 
-	    Note note = noteRepository.findById(noteId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Note", "id", noteId));
-
-	    note.setTitle(noteDetails.getTitle());
-	    note.setContent(noteDetails.getContent());
-
-	    Note updatedNote = noteRepository.save(note);
-	    return updatedNote;
-	}
+		if(!authorRepository.existsById(author_id)) {
+			throw new AuthorNotFoundException(author_id);
+		}
+		else if(!noteRepository.existsById(noteId)) {
+			throw new ResourceNotFoundException("Note", "id", noteId);
+			
+		}
+		else 
+			return noteRepository.findById(noteId)
+					.map(old_note ->{
+						old_note.setContent(updated_note.getContent());
+						old_note.setTitle(updated_note.getTitle());
+						return noteRepository.save(old_note);
+					});
+}
 	
-	@DeleteMapping("/notes/{id}")
-	public ResponseEntity<?> deleteNote(@PathVariable(value = "id") Long noteId) {
-	    Note note = noteRepository.findById(noteId)
-	            .orElseThrow(() -> new ResourceNotFoundException("Note", "id", noteId));
+	
+	
+	
+	
+	@DeleteMapping("/author/{author_id}/notes/{note_id}")
+	public  Optional<String> deleteNote(@PathVariable(value = "note_id") Long noteId
+			, @PathVariable(value = "author_id") Long author_id) {
 
-	    noteRepository.delete(note);
-
-	    return ResponseEntity.ok().build();
+		if(!authorRepository.existsById(author_id)) {
+			throw new AuthorNotFoundException(author_id);
+		}
+		else {
+			return noteRepository.findById(noteId)
+					.map(note ->{
+						noteRepository.delete(note);
+						return "Delete Successfully";
+					});
+		}
+			
 	}
 }
