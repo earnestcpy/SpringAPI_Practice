@@ -6,6 +6,7 @@ import java.util.Optional;
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -17,6 +18,8 @@ import com.example.practice.exception.ResourceNotFoundException;
 import com.example.practice.model.Author;
 import com.example.practice.repository.AuthorRepository;
 
+
+@CrossOrigin(origins = "http://localhost:4200")  // Spring boot, by default, only allows connections from same domain and port. // CrossOrigin allows connections from other domains defined in "origins"
 @RestController
 @RequestMapping("/authors_api")
 public class AuthorController {
